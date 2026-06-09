@@ -1,0 +1,220 @@
+{% extends "base.html" %}
+
+{% block title %}儀表板看板 - 打工排班最佳化系統{% endblock %}
+
+{% block content %}
+<div class="dashboard-title">
+    <h2>👋 你好，{{ session.get('name') }}！</h2>
+    <p>歡迎登入排班系統。今天是 {{ datetime_today }}。</p>
+</div>
+
+{% if role == 'manager' %}
+    <!-- ================= MANAGER DASHBOARD ================= -->
+    <div class="widget-grid">
+        <div class="widget-card glass-panel warning">
+            <div class="widget-header">
+                <span>📝 待審核請假</span>
+                <span class="badge badge-warning">待處理</span>
+            </div>
+            <div class="widget-value">{{ pending_leaves_count }} 件</div>
+            <div style="margin-top: 0.5rem;"><a href="{{ url_for('leave.leave_review_page') }}" style="color: var(--warning); text-decoration: none; font-size: 0.9rem; font-weight: 500;">前往審核 →</a></div>
+        </div>
+
+        <div class="widget-card glass-panel danger">
+            <div class="widget-header">
+                <span>⚠️ 今日缺工班次</span>
+                <span class="badge badge-danger">警告</span>
+            </div>
+            <div class="widget-value">{{ understaffed_shifts|length }} 班</div>
+            <div style="margin-top: 0.5rem; color: var(--text-secondary); font-size: 0.9rem;">今日營業時段急需指派人員</div>
+        </div>
+
+        <div class="widget-card glass-panel success">
+            <div class="widget-header">
+                <span>🟢 今日出勤人數</span>
+                <span class="badge badge-success">正常</span>
+            </div>
+            <div class="widget-value">{{ attendance_count }} 人</div>
+            <div style="margin-top: 0.5rem; color: var(--text-secondary); font-size: 0.9rem;">今日已指派的排班總人數</div>
+        </div>
+    </div>
+
+    <!-- Today's Understaffed Shifts -->
+    <div class="section-panel glass-panel">
+        <div class="section-header">
+            <h3 style="color: #f87171; display: flex; align-items: center; gap: 0.5rem;">🚨 今日缺工/未指派班次</h3>
+        </div>
+        <div class="table-responsive">
+            <table class="table">
+                <thead>
+                    <tr>
+                        <th>班別名稱</th>
+                        <th>開始時間</th>
+                        <th>結束時間</th>
+                        <th>工時 (小時)</th>
+                        <th>狀態</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    {% if understaffed_shifts %}
+                        {% for shift in understaffed_shifts %}
+                            <tr>
+                                <td style="font-weight: 600;">{{ shift.title }}</td>
+                                <td>{{ shift.start_time.strftime('%H:%M') }}</td>
+                                <td>{{ shift.end_time.strftime('%H:%M') }}</td>
+                                <td>{{ shift.duration_hours }} hrs</td>
+                                <td><span class="badge badge-danger">無人出勤 (缺工)</span></td>
+                            </tr>
+                        {% endfor %}
+                    {% else %}
+                        <tr>
+                            <td colspan="5" style="text-align: center; color: var(--text-secondary);">🎉 今日無缺工班次，人力已全部排定！</td>
+                        </tr>
+                    {% endif %}
+                </tbody>
+            </table>
+        </div>
+    </div>
+
+    <!-- Today's Attendance List -->
+    <div class="section-panel glass-panel">
+        <div class="section-header">
+            <h3>👥 今日已排定出勤名單</h3>
+        </div>
+        <div class="table-responsive">
+            <table class="table">
+                <thead>
+                    <tr>
+                        <th>出勤員工</th>
+                        <th>班別名稱</th>
+                        <th>上班時間</th>
+                        <th>下班時間</th>
+                        <th>狀態</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    {% if assigned_shifts %}
+                        {% for shift in assigned_shifts %}
+                            <tr>
+                                <td style="font-weight: 600;">{{ shift.staff.name }}</td>
+                                <td>{{ shift.title }}</td>
+                                <td>{{ shift.start_time.strftime('%H:%M') }}</td>
+                                <td>{{ shift.end_time.strftime('%H:%M') }}</td>
+                                <td><span class="badge badge-success">正常排班</span></td>
+                            </tr>
+                        {% endfor %}
+                    {% else %}
+                        <tr>
+                            <td colspan="5" style="text-align: center; color: var(--text-secondary);">今日尚未有指派人員的排班班次。</td>
+                        </tr>
+                    {% endif %}
+                </tbody>
+            </table>
+        </div>
+    </div>
+
+{% else %}
+    <!-- ================= STAFF DASHBOARD ================= -->
+    <div class="widget-grid" style="grid-template-columns: 1fr;">
+        <div class="widget-card glass-panel primary" style="display: flex; justify-content: space-between; align-items: center; padding: 1.75rem;">
+            <div>
+                <h4 style="font-size: 1.15rem; margin-bottom: 0.25rem;">📝 線上請假與代班申請</h4>
+                <p style="color: var(--text-secondary); font-size: 0.9rem;">臨時有事？您可以線上填寫假單或針對您的班次發起代班募集。</p>
+            </div>
+            <div>
+                <a href="{{ url_for('leave.leave_apply_page') }}" class="btn btn-primary" style="width: auto; padding: 0.6rem 1.25rem;">提出請假申請</a>
+            </div>
+        </div>
+    </div>
+
+    <!-- Weekly shifts schedule -->
+    <div class="section-panel glass-panel">
+        <div class="section-header">
+            <h3>📅 我的本週排班 (已發佈)</h3>
+        </div>
+        <div class="table-responsive">
+            <table class="table">
+                <thead>
+                    <tr>
+                        <th>日期</th>
+                        <th>班次名稱</th>
+                        <th>上班時間</th>
+                        <th>下班時間</th>
+                        <th>工時</th>
+                        <th>操作</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    {% if weekly_shifts %}
+                        {% for shift in weekly_shifts %}
+                            <tr>
+                                <td>{{ shift.start_time.strftime('%Y-%m-%d (%a)') }}</td>
+                                <td style="font-weight: 600;">{{ shift.title }}</td>
+                                <td>{{ shift.start_time.strftime('%H:%M') }}</td>
+                                <td>{{ shift.end_time.strftime('%H:%M') }}</td>
+                                <td>{{ shift.duration_hours }} hrs</td>
+                                <td>
+                                    <form action="{{ url_for('leave.shift_swap_post') }}" method="POST" onsubmit="return confirm('確定要將此班表釋出並發起代班募集嗎？')" style="display: inline;">
+                                        <input type="hidden" name="shift_id" value="{{ shift.id }}">
+                                        <button type="submit" class="btn btn-danger" style="padding: 0.35rem 0.75rem; font-size: 0.8rem; width: auto; font-weight: 500;">發起代班募集</button>
+                                    </form>
+                                </td>
+                            </tr>
+                        {% endfor %}
+                    {% else %}
+                        <tr>
+                            <td colspan="6" style="text-align: center; color: var(--text-secondary);">本週無排班，好好休息吧！☕</td>
+                        </tr>
+                    {% endif %}
+                </tbody>
+            </table>
+        </div>
+    </div>
+
+    <!-- Personal Leave History -->
+    <div class="section-panel glass-panel">
+        <div class="section-header">
+            <h3>📝 我的請假紀錄</h3>
+        </div>
+        <div class="table-responsive">
+            <table class="table">
+                <thead>
+                    <tr>
+                        <th>假別</th>
+                        <th>開始時間</th>
+                        <th>結束時間</th>
+                        <th>事由</th>
+                        <th>狀態</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    {% if leave_history %}
+                        {% for leave in leave_history %}
+                            <tr>
+                                <td style="font-weight: 600;">{{ leave.leave_type }}</td>
+                                <td>{{ leave.start_time.strftime('%m-%d %H:%M') }}</td>
+                                <td>{{ leave.end_time.strftime('%m-%d %H:%M') }}</td>
+                                <td>{{ leave.reason or '無' }}</td>
+                                <td>
+                                    {% if leave.status == 'Pending' %}
+                                        <span class="badge badge-warning">審核中</span>
+                                    {% elif leave.status == 'Approved' %}
+                                        <span class="badge badge-success">核准</span>
+                                    {% elif leave.status == 'Rejected' %}
+                                        <span class="badge badge-danger">退回</span>
+                                    {% endif %}
+                                </td>
+                            </tr>
+                        {% endfor %}
+                    {% else %}
+                        <tr>
+                            <td colspan="5" style="text-align: center; color: var(--text-secondary);">查無請假紀錄。</td>
+                        </tr>
+                    {% endif %}
+                </tbody>
+            </table>
+        </div>
+    </div>
+
+{% endif %}
+{% endblock %}

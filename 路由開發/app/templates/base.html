@@ -1,0 +1,114 @@
+<!DOCTYPE html>
+<html lang="zh-Hant">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>{% block title %}自動打工排班最佳化系統{% endblock %}</title>
+    <!-- Core Style -->
+    <link rel="stylesheet" href="{{ url_for('static', filename='css/style.css') }}">
+    {% block extra_css %}{% endblock %}
+</head>
+<body>
+    
+    <!-- Flash Messages Container -->
+    <div class="flash-container">
+        {% with messages = get_flashed_messages(with_categories=true) %}
+            {% if messages %}
+                {% for category, message in messages %}
+                    <div class="alert alert-{{ category if category != 'error' else 'danger' }}">
+                        {{ message }}
+                    </div>
+                {% endfor %}
+            {% endif %}
+        {% endwith %}
+    </div>
+
+    <!-- Navigation Bar -->
+    <nav class="navbar">
+        <a href="{{ url_for('main.index') }}" class="navbar-brand">
+            <span style="font-size: 1.6rem;">📅</span> 打工排班最佳化系統
+        </a>
+        <div class="navbar-user">
+            {% if session.get('user_id') %}
+                <span class="user-badge">
+                    👤 {{ session.get('name') }} ({% if session.get('role') == 'manager' %}店長{% else %}一般員工{% endif %})
+                </span>
+                <form action="{{ url_for('auth.logout') }}" method="POST" style="display: inline;">
+                    <button type="submit" class="btn btn-outline" style="padding: 0.4rem 0.8rem; font-size: 0.85rem; width: auto; font-weight: 500;">登出</button>
+                </form>
+            {% else %}
+                <a href="{{ url_for('auth.login_page') }}" class="btn btn-primary" style="padding: 0.4rem 0.8rem; font-size: 0.85rem; width: auto;">登入</a>
+            {% endif %}
+        </div>
+    </nav>
+
+    <div class="app-container">
+        {% if session.get('user_id') %}
+            <!-- Sidebar Navigation -->
+            <aside class="sidebar">
+                <ul class="sidebar-menu">
+                    <li>
+                        <a href="{{ url_for('main.index') }}" class="sidebar-link {% if request.endpoint == 'main.index' or request.endpoint == 'main.manager_dashboard' or request.endpoint == 'main.staff_dashboard' %}active{% endif %}">
+                            📊 儀表板看板
+                        </a>
+                    </li>
+                    
+                    {% if session.get('role') == 'manager' %}
+                        <!-- Manager Only Links -->
+                        <li>
+                            <a href="#" class="sidebar-link">
+                                👥 員工管理
+                            </a>
+                        </li>
+                        <li>
+                            <a href="#" class="sidebar-link">
+                                ⚙️ 排班管理
+                            </a>
+                        </li>
+                        <li>
+                            <a href="{{ url_for('leave.leave_review_page') }}" class="sidebar-link {% if request.endpoint == 'leave.leave_review_page' %}active{% endif %}">
+                                📝 審核請假
+                            </a>
+                        </li>
+                    {% endif %}
+                    
+                    {% if session.get('role') == 'staff' %}
+                        <!-- Staff Only Links -->
+                        <li>
+                            <a href="{{ url_for('leave.leave_apply_page') }}" class="sidebar-link {% if request.endpoint == 'leave.leave_apply_page' %}active{% endif %}">
+                                ✍️ 申請請假
+                            </a>
+                        </li>
+                        <li>
+                            <a href="#" class="sidebar-link">
+                                📅 檢視班表
+                            </a>
+                        </li>
+                    {% endif %}
+                </ul>
+            </aside>
+        {% endif %}
+
+        <!-- Main Content Area -->
+        <main class="main-content" style="{% if not session.get('user_id') %}margin-left: 0; padding: 0;{% endif %}">
+            {% block content %}{% endblock %}
+        </main>
+    </div>
+
+    <!-- Micro Interaction Script for Flashes -->
+    <script>
+        document.addEventListener('DOMContentLoaded', () => {
+            const alerts = document.querySelectorAll('.alert');
+            alerts.forEach(alert => {
+                setTimeout(() => {
+                    alert.style.transition = 'opacity 0.5s ease, transform 0.5s ease';
+                    alert.style.opacity = '0';
+                    alert.style.transform = 'translateY(-10px) scale(0.95)';
+                    setTimeout(() => alert.remove(), 500);
+                }, 4000);
+            });
+        });
+    </script>
+    {% block extra_js %}{% endblock %}
+</body>
+</html>

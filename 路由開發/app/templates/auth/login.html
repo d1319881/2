@@ -1,0 +1,32 @@
+{% extends "base.html" %}
+
+{% block title %}登入 - 打工排班最佳化系統{% endblock %}
+
+{% block content %}
+<div class="auth-wrapper">
+    <div class="auth-card glass-panel">
+        <div class="auth-header">
+            <h1>歡迎回來</h1>
+            <p>請輸入您的帳號與密碼以登入排班系統</p>
+        </div>
+
+        <form action="{{ url_for('auth.login') }}" method="POST">
+            <div class="form-group">
+                <label for="username" class="form-label">帳號 (Username)</label>
+                <input type="text" id="username" name="username" class="form-control" placeholder="請輸入帳號" required autocomplete="username">
+            </div>
+
+            <div class="form-group">
+                <label for="password" class="form-label">密碼 (Password)</label>
+                <input type="password" id="password" name="password" class="form-control" placeholder="請輸入密碼" required autocomplete="current-password">
+            </div>
+
+            <button type="submit" class="btn btn-primary" style="margin-top: 1rem;">登入系統</button>
+        </form>
+
+        <div class="auth-footer">
+            還沒有帳號嗎？ <a href="{{ url_for('auth.register_page') }}">立即註冊</a>
+        </div>
+    </div>
+</div>
+{% endblock %}
