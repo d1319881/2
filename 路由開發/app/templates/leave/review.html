@@ -1,0 +1,116 @@
+{% extends "base.html" %}
+
+{% block title %}審核請假 - 打工排班最佳化系統{% endblock %}
+
+{% block content %}
+<div class="dashboard-title">
+    <h2>📝 請假申請審核中心</h2>
+    <p>審核員工的請假單。核准請假後，該員工在請假時段內的排班班次將自動轉為「缺工」狀態以利重新指派。</p>
+</div>
+
+<!-- Pending Leaves Section -->
+<div class="section-panel glass-panel">
+    <div class="section-header">
+        <h3 style="color: var(--warning);">⏳ 待處理請假申請 ({{ pending_leaves|length }})</h3>
+    </div>
+    <div class="table-responsive">
+        <table class="table">
+            <thead>
+                <tr>
+                    <th>申請員工</th>
+                    <th>假別</th>
+                    <th>開始時間</th>
+                    <th>結束時間</th>
+                    <th>事由/說明</th>
+                    <th style="min-width: 320px;">審核動作</th>
+                </tr>
+            </thead>
+            <tbody>
+                {% if pending_leaves %}
+                    {% for leave in pending_leaves %}
+                        <tr>
+                            <td style="font-weight: 600;">{{ leave.staff.name }}</td>
+                            <td>
+                                {% if leave.leave_type == 'Personal' %}
+                                    <span class="badge badge-info">事假</span>
+                                {% elif leave.leave_type == 'Sick' %}
+                                    <span class="badge badge-danger">病假</span>
+                                {% else %}
+                                    <span class="badge badge-success">特休/年假</span>
+                                {% endif %}
+                            </td>
+                            <td>{{ leave.start_time.strftime('%Y-%m-%d %H:%M') }}</td>
+                            <td>{{ leave.end_time.strftime('%Y-%m-%d %H:%M') }}</td>
+                            <td>{{ leave.reason or '無' }}</td>
+                            <td>
+                                <div style="display: flex; gap: 0.5rem; align-items: center;">
+                                    <!-- Approve Form -->
+                                    <form action="{{ url_for('leave.leave_approve', leave_id=leave.id) }}" method="POST" style="margin: 0;">
+                                        <button type="submit" class="btn btn-success" style="padding: 0.4rem 0.8rem; font-size: 0.85rem; width: auto;">核准</button>
+                                    </form>
+                                    
+                                    <!-- Reject Form -->
+                                    <form action="{{ url_for('leave.leave_reject', leave_id=leave.id) }}" method="POST" style="display: flex; gap: 0.25rem; margin: 0; flex: 1;">
+                                        <input type="text" name="comment" class="form-control" placeholder="退回理由(選填)" style="padding: 0.35rem 0.5rem; font-size: 0.85rem; height: auto;">
+                                        <button type="submit" class="btn btn-danger" style="padding: 0.4rem 0.8rem; font-size: 0.85rem; width: auto; font-weight: 500;">退回</button>
+                                    </form>
+                                </div>
+                            </td>
+                        </tr>
+                    {% endfor %}
+                {% else %}
+                    <tr>
+                        <td colspan="6" style="text-align: center; color: var(--text-secondary); padding: 2rem 0;">🎉 目前沒有等待審核的請假申請。</td>
+                    </tr>
+                {% endif %}
+            </tbody>
+        </table>
+    </div>
+</div>
+
+<!-- History Section -->
+<div class="section-panel glass-panel">
+    <div class="section-header">
+        <h3>📜 歷史審核紀錄</h3>
+    </div>
+    <div class="table-responsive">
+        <table class="table">
+            <thead>
+                <tr>
+                    <th>員工</th>
+                    <th>假別</th>
+                    <th>開始時間</th>
+                    <th>結束時間</th>
+                    <th>事由/退回備註</th>
+                    <th>狀態</th>
+                </tr>
+            </thead>
+            <tbody>
+                {% set history = approved_leaves + rejected_leaves %}
+                {% if history %}
+                    {% for leave in history|sort(attribute='created_at', reverse=true) %}
+                        <tr>
+                            <td style="font-weight: 600;">{{ leave.staff.name }}</td>
+                            <td>{{ leave.leave_type }}</td>
+                            <td>{{ leave.start_time.strftime('%Y-%m-%d %H:%M') }}</td>
+                            <td>{{ leave.end_time.strftime('%Y-%m-%d %H:%M') }}</td>
+                            <td>{{ leave.reason or '無' }}</td>
+                            <td>
+                                {% if leave.status == 'Approved' %}
+                                    <span class="badge badge-success">核准</span>
+                                {% else %}
+                                    <span class="badge badge-danger">退回</span>
+                                {% endif %}
+                            </td>
+                        </tr>
+                    {% endfor %}
+                {% else %}
+                    <tr>
+                        <td colspan="6" style="text-align: center; color: var(--text-secondary);">查無歷史審核紀錄。</td>
+                    </tr>
+                {% endif %}
+            </tbody>
+        </table>
+    </div>
+</div>
+{% endblock %}

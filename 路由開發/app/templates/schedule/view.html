@@ -1,0 +1,138 @@
+{% extends "base.html" %}
+
+{% block title %}檢視班表 - 自動打工排班最佳化系統{% endblock %}
+
+{% block extra_css %}
+<!-- FullCalendar CSS CDN -->
+<link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/fullcalendar@5.11.3/main.min.css">
+<style>
+    .fc {
+        max-width: 100%;
+        margin: 0 auto;
+        color: var(--text-primary);
+    }
+    
+    .fc-theme-standard td, .fc-theme-standard th {
+        border-color: var(--card-border) !important;
+    }
+    
+    .fc-theme-standard .fc-scrollgrid {
+        border-color: var(--card-border) !important;
+        border-radius: 12px;
+        overflow: hidden;
+    }
+    
+    .fc-daygrid-day-number {
+        color: var(--text-secondary);
+        padding: 8px !important;
+        text-decoration: none;
+    }
+    
+    .fc-col-header-cell-cushion {
+        color: var(--text-primary);
+        text-decoration: none;
+        padding: 8px 0 !important;
+        font-weight: 600;
+    }
+    
+    .fc-toolbar-title {
+        font-size: 1.5rem !important;
+        font-weight: 700;
+        background: linear-gradient(135deg, #60a5fa, #34d399);
+        -webkit-background-clip: text;
+        -webkit-text-fill-color: transparent;
+    }
+    
+    .fc-button {
+        background-color: rgba(255, 255, 255, 0.05) !important;
+        border: 1px solid var(--card-border) !important;
+        color: var(--text-primary) !important;
+        font-weight: 500 !important;
+        text-transform: capitalize !important;
+        transition: all 0.2s ease !important;
+    }
+    
+    .fc-button:hover {
+        background-color: rgba(255, 255, 255, 0.1) !important;
+    }
+    
+    .fc-button-active {
+        background: var(--primary) !important;
+        border-color: var(--primary) !important;
+        color: #ffffff !important;
+        box-shadow: 0 0 8px var(--primary-glow) !important;
+    }
+    
+    .fc-event {
+        cursor: pointer;
+        padding: 2px 4px;
+        border-radius: 6px;
+        border: none !important;
+        font-size: 0.85rem;
+        box-shadow: 0 2px 6px rgba(0, 0, 0, 0.15);
+        transition: transform 0.15s ease;
+    }
+    
+    .fc-event:hover {
+        transform: scale(1.02);
+    }
+    
+    .calendar-container {
+        padding: 2rem;
+    }
+</style>
+{% endblock %}
+
+{% block content %}
+<div class="dashboard-title">
+    <h2>📅 班表行事曆檢視</h2>
+    <p>您可以在此處查閱所有已發佈的班表時段</p>
+</div>
+
+<div class="glass-panel calendar-container">
+    <div id="calendar"></div>
+</div>
+{% endblock %}
+
+{% block extra_js %}
+<!-- FullCalendar JS & Locales CDN -->
+<script src="https://cdn.jsdelivr.net/npm/fullcalendar@5.11.3/main.min.js"></script>
+<script src="https://cdn.jsdelivr.net/npm/fullcalendar@5.11.3/locales/zh-tw.js"></script>
+<script>
+    document.addEventListener('DOMContentLoaded', function() {
+        const calendarEl = document.getElementById('calendar');
+        const calendar = new FullCalendar.Calendar(calendarEl, {
+            locale: 'zh-tw',
+            initialView: 'dayGridMonth',
+            headerToolbar: {
+                left: 'prev,next today',
+                center: 'title',
+                right: 'dayGridMonth,timeGridWeek'
+            },
+            firstDay: 1, // 週一開始
+            events: '/api/shifts', // JSON API URL
+            eventClick: function(info) {
+                // 當員工點擊班次時，可看見彈出視窗說明詳細內容
+                alert(
+                    "【班次資訊】\n" +
+                    "班次：" + info.event.title + "\n" +
+                    "時間：" + formatEventTime(info.event.start, info.event.end)
+                );
+            }
+        });
+        calendar.render();
+        
+        function formatEventTime(start, end) {
+            const pad = (n) => n.toString().padStart(2, '0');
+            const format = (date) => {
+                return date.getFullYear() + "-" + 
+                       pad(date.getMonth() + 1) + "-" + 
+                       pad(date.getDate()) + " " + 
+                       pad(date.getHours()) + ":" + 
+                       pad(date.getMinutes());
+            };
+            return format(start) + " ~ " + (end ? format(end) : "");
+        }
+    });
+</script>
+{% endblock %}

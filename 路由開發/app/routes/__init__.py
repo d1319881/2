@@ -12,6 +12,9 @@ def register_blueprints(app):
     """
     在 Flask app 實例中註冊所有的 Blueprint 路由
     """
+    # 導入各個路由模組以使路由裝飾器生效
+    from app.routes import auth, main, schedule, leave, api
+
     app.register_blueprint(auth_bp)
     app.register_blueprint(main_bp)
     app.register_blueprint(schedule_bp)

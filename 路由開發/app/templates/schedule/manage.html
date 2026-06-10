@@ -1,0 +1,442 @@
+{% extends "base.html" %}
+
+{% block title %}排班管理 - 自動打工排班最佳化系統{% endblock %}
+
+{% block extra_css %}
+<!-- FullCalendar CSS CDN -->
+<link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/fullcalendar@5.11.3/main.min.css">
+<style>
+    .fc {
+        max-width: 100%;
+        margin: 0 auto;
+        color: var(--text-primary);
+    }
+    
+    .fc-theme-standard td, .fc-theme-standard th {
+        border-color: var(--card-border) !important;
+    }
+    
+    .fc-theme-standard .fc-scrollgrid {
+        border-color: var(--card-border) !important;
+        border-radius: 12px;
+        overflow: hidden;
+    }
+    
+    .fc-daygrid-day-number {
+        color: var(--text-secondary);
+        padding: 8px !important;
+        text-decoration: none;
+    }
+    
+    .fc-col-header-cell-cushion {
+        color: var(--text-primary);
+        text-decoration: none;
+        padding: 8px 0 !important;
+        font-weight: 600;
+    }
+    
+    .fc-toolbar-title {
+        font-size: 1.5rem !important;
+        font-weight: 700;
+        background: linear-gradient(135deg, #60a5fa, #34d399);
+        -webkit-background-clip: text;
+        -webkit-text-fill-color: transparent;
+    }
+    
+    .fc-button {
+        background-color: rgba(255, 255, 255, 0.05) !important;
+        border: 1px solid var(--card-border) !important;
+        color: var(--text-primary) !important;
+        font-weight: 500 !important;
+        text-transform: capitalize !important;
+        transition: all 0.2s ease !important;
+    }
+    
+    .fc-button:hover {
+        background-color: rgba(255, 255, 255, 0.1) !important;
+    }
+    
+    .fc-button-active {
+        background: var(--primary) !important;
+        border-color: var(--primary) !important;
+        color: #ffffff !important;
+        box-shadow: 0 0 8px var(--primary-glow) !important;
+    }
+    
+    .fc-event {
+        cursor: grab;
+        padding: 2px 4px;
+        border-radius: 6px;
+        border: none !important;
+        font-size: 0.85rem;
+        box-shadow: 0 2px 6px rgba(0, 0, 0, 0.15);
+        transition: transform 0.15s ease;
+    }
+    
+    .fc-event:active {
+        cursor: grabbing;
+    }
+    
+    .fc-event:hover {
+        transform: scale(1.02);
+    }
+    
+    .control-grid {
+        display: grid;
+        grid-template-columns: 1fr 1fr;
+        gap: 1.5rem;
+        margin-bottom: 2rem;
+    }
+    
+    @media (max-width: 768px) {
+        .control-grid {
+            grid-template-columns: 1fr;
+        }
+    }
+    
+    .control-panel {
+        padding: 1.5rem;
+    }
+    
+    .control-panel h3 {
+        margin-bottom: 1rem;
+        font-size: 1.15rem;
+        font-weight: 600;
+        display: flex;
+        align-items: center;
+        gap: 0.5rem;
+    }
+    
+    .calendar-container {
+        padding: 2rem;
+        margin-bottom: 3rem;
+    }
+    
+    /* Modal Dialog styling */
+    .modal-overlay {
+        position: fixed;
+        top: 0;
+        left: 0;
+        right: 0;
+        bottom: 0;
+        background: rgba(0, 0, 0, 0.6);
+        backdrop-filter: blur(4px);
+        z-index: 1000;
+        display: none;
+        justify-content: center;
+        align-items: center;
+    }
+    
+    .modal-content {
+        background: #0f172a;
+        border: 1px solid var(--card-border);
+        border-radius: 16px;
+        padding: 2rem;
+        max-width: 440px;
+        width: 100%;
+        box-shadow: 0 20px 25px -5px rgba(0, 0, 0, 0.5);
+    }
+    
+    .modal-header {
+        font-size: 1.25rem;
+        font-weight: 700;
+        margin-bottom: 1.5rem;
+        color: var(--text-primary);
+        border-bottom: 1px solid var(--card-border);
+        padding-bottom: 0.5rem;
+    }
+    
+    .modal-footer {
+        display: flex;
+        gap: 0.75rem;
+        margin-top: 1.5rem;
+    }
+    
+    .date-inputs {
+        display: flex;
+        gap: 0.5rem;
+    }
+</style>
+{% endblock %}
+
+{% block content %}
+<div class="dashboard-title">
+    <h2>⚙️ 排班管理與調度工作台</h2>
+    <p>在此處您可以點擊一鍵智慧排班、發佈班表或在行事曆上直接拖拉微調班表</p>
+</div>
+
+<!-- Controls Panel Grid -->
+<div class="control-grid">
+    <!-- Auto-scheduling Panel -->
+    <div class="glass-panel control-panel">
+        <h3>🤖 一鍵自動排班</h3>
+        <form action="{{ url_for('schedule.auto_schedule') }}" method="POST">
+            <div class="form-group">
+                <label class="form-label">選擇排班日期區間</label>
+                <div class="date-inputs">
+                    <input type="date" class="form-control" name="start_date" required>
+                    <input type="date" class="form-control" name="end_date" required>
+                </div>
+            </div>
+            <button type="submit" class="btn btn-primary">開始自動最佳化排班</button>
+        </form>
+    </div>
+    
+    <!-- Publish Shifts Panel -->
+    <div class="glass-panel control-panel">
+        <h3>📢 發佈班表草稿</h3>
+        <form action="{{ url_for('schedule.publish_schedule') }}" method="POST">
+            <div class="form-group">
+                <label class="form-label">選擇發佈日期區間</label>
+                <div class="date-inputs">
+                    <input type="date" class="form-control" name="start_date" required>
+                    <input type="date" class="form-control" name="end_date" required>
+                </div>
+            </div>
+            <button type="submit" class="btn btn-success">正式發佈班表</button>
+        </form>
+    </div>
+</div>
+
+<!-- Calendar container -->
+<div class="glass-panel calendar-container">
+    <div id="calendar"></div>
+</div>
+
+<!-- Edit Shift Modal overlay -->
+<div class="modal-overlay" id="shiftModal">
+    <div class="modal-content">
+        <div class="modal-header" id="modalTitle">編輯班次指派</div>
+        
+        <input type="hidden" id="modalShiftId">
+        
+        <div class="form-group">
+            <label class="form-label">班次名稱</label>
+            <input type="text" class="form-control" id="modalShiftTitle" disabled>
+        </div>
+        
+        <div class="form-group">
+            <label class="form-label">班次時間</label>
+            <p id="modalShiftTime" style="font-size: 0.9rem; color: var(--text-secondary);"></p>
+        </div>
+        
+        <div class="form-group">
+            <label class="form-label">指派員工</label>
+            <select class="form-control" id="modalStaffSelect">
+                <option value="null">-- 缺工/空班 --</option>
+                {% for staff in staff_list %}
+                    <option value="{{ staff.id }}">{{ staff.name }}</option>
+                {% endfor %}
+            </select>
+        </div>
+        
+        <div class="modal-footer">
+            <button type="button" class="btn btn-primary" id="saveShiftBtn" style="flex: 2;">更新指派</button>
+            <button type="button" class="btn btn-danger" id="deleteShiftBtn" style="flex: 1;">刪除</button>
+            <button type="button" class="btn btn-outline" id="cancelShiftBtn" style="flex: 1;">取消</button>
+        </div>
+    </div>
+</div>
+{% endblock %}
+
+{% block extra_js %}
+<!-- FullCalendar JS & Locales CDN -->
+<script src="https://cdn.jsdelivr.net/npm/fullcalendar@5.11.3/main.min.js"></script>
+<script src="https://cdn.jsdelivr.net/npm/fullcalendar@5.11.3/locales/zh-tw.js"></script>
+<script>
+    document.addEventListener('DOMContentLoaded', function() {
+        const calendarEl = document.getElementById('calendar');
+        const shiftModal = document.getElementById('shiftModal');
+        
+        const modalShiftId = document.getElementById('modalShiftId');
+        const modalShiftTitle = document.getElementById('modalShiftTitle');
+        const modalShiftTime = document.getElementById('modalShiftTime');
+        const modalStaffSelect = document.getElementById('modalStaffSelect');
+        
+        const saveShiftBtn = document.getElementById('saveShiftBtn');
+        const deleteShiftBtn = document.getElementById('deleteShiftBtn');
+        const cancelShiftBtn = document.getElementById('cancelShiftBtn');
+        
+        let activeEvent = null;
+
+        const calendar = new FullCalendar.Calendar(calendarEl, {
+            locale: 'zh-tw',
+            initialView: 'dayGridMonth',
+            headerToolbar: {
+                left: 'prev,next today',
+                center: 'title',
+                right: 'dayGridMonth,timeGridWeek'
+            },
+            firstDay: 1, // 週一開始
+            editable: true, // 允許拖拉與調整大小
+            events: '/api/shifts',
+            
+            // 處理拖拉事件 (Move event)
+            eventDrop: function(info) {
+                updateEventOnServer(info.event, info.revert);
+            },
+            
+            // 處理調整大小事件 (Resize event)
+            eventResize: function(info) {
+                updateEventOnServer(info.event, info.revert);
+            },
+            
+            // 處理點擊事件 (Click event to open modal)
+            eventClick: function(info) {
+                activeEvent = info.event;
+                modalShiftId.value = activeEvent.id;
+                modalShiftTitle.value = activeEvent.extendedProps.title_only || activeEvent.title;
+                modalShiftTime.textContent = formatEventTime(activeEvent.start, activeEvent.end);
+                
+                const staffId = activeEvent.extendedProps.staff_id;
+                modalStaffSelect.value = staffId ? staffId : "null";
+                
+                shiftModal.style.display = 'flex';
+            }
+        });
+        
+        calendar.render();
+
+        // 關閉 Modal
+        cancelShiftBtn.addEventListener('click', () => {
+            shiftModal.style.display = 'none';
+            activeEvent = null;
+        });
+
+        // 刪除班次
+        deleteShiftBtn.addEventListener('click', () => {
+            if (!activeEvent) return;
+            if (!confirm("確定要刪除此班次嗎？")) return;
+            
+            fetch('/api/shift/update', {
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'application/json'
+                },
+                body: JSON.stringify({
+                    shift_id: activeEvent.id,
+                    delete: true
+                })
+            })
+            .then(res => res.json())
+            .then(data => {
+                if (data.status === 'success') {
+                    showBanner(data.message, 'success');
+                    activeEvent.remove();
+                    shiftModal.style.display = 'none';
+                    activeEvent = null;
+                } else {
+                    showBanner(data.message || '刪除失敗', 'danger');
+                }
+            })
+            .catch(err => {
+                showBanner('連線伺服器發生錯誤', 'danger');
+            });
+        });
+
+        // 保存更新 (更新指派人員)
+        saveShiftBtn.addEventListener('click', () => {
+            if (!activeEvent) return;
+            
+            const staffId = modalStaffSelect.value;
+            
+            fetch('/api/shift/update', {
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'application/json'
+                },
+                body: JSON.stringify({
+                    shift_id: activeEvent.id,
+                    staff_id: staffId === "null" ? null : staffId
+                })
+            })
+            .then(res => res.json())
+            .then(data => {
+                if (data.status === 'success') {
+                    showBanner(data.message, 'success');
+                    calendar.refetchEvents(); // 重新整理
+                    shiftModal.style.display = 'none';
+                    activeEvent = null;
+                } else if (data.status === 'warning') {
+                    showBanner(data.message, 'warning');
+                } else {
+                    showBanner(data.message || '更新失敗', 'danger');
+                }
+            })
+            .catch(err => {
+                showBanner('連線伺服器發生錯誤', 'danger');
+            });
+        });
+
+        // 非同步更新伺服器上的時間
+        function updateEventOnServer(event, revertFunc) {
+            fetch('/api/shift/update', {
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'application/json'
+                },
+                body: JSON.stringify({
+                    shift_id: event.id,
+                    start_time: event.start.toISOString(),
+                    end_time: event.end ? event.end.toISOString() : event.start.toISOString(),
+                    staff_id: event.extendedProps.staff_id
+                })
+            })
+            .then(res => res.json())
+            .then(data => {
+                if (data.status === 'success') {
+                    showBanner(data.message, 'success');
+                    calendar.refetchEvents();
+                } else if (data.status === 'warning') {
+                    showBanner(data.message, 'warning');
+                    revertFunc(); // 違反限制，還原拖拉
+                } else {
+                    showBanner(data.message || '更新失敗', 'danger');
+                    revertFunc();
+                }
+            })
+            .catch(err => {
+                showBanner('連線伺服器發生錯誤，操作已復原', 'danger');
+                revertFunc();
+            });
+        }
+
+        // 格式化時間
+        function formatEventTime(start, end) {
+            const pad = (n) => n.toString().padStart(2, '0');
+            const format = (date) => {
+                return date.getFullYear() + "-" + 
+                       pad(date.getMonth() + 1) + "-" + 
+                       pad(date.getDate()) + " " + 
+                       pad(date.getHours()) + ":" + 
+                       pad(date.getMinutes());
+            };
+            return format(start) + " ~ " + (end ? format(end) : "");
+        }
+
+        // 動態顯示 Banner 提示
+        function showBanner(message, category) {
+            // 先清除現有
+            const oldContainer = document.querySelector('.flash-container');
+            let container = oldContainer;
+            if (!container) {
+                container = document.createElement('div');
+                container.className = 'flash-container';
+                document.body.appendChild(container);
+            }
+            
+            const alert = document.createElement('div');
+            alert.className = `alert alert-${category}`;
+            alert.textContent = message;
+            container.appendChild(alert);
+            
+            setTimeout(() => {
+                alert.style.transition = 'opacity 0.5s ease, transform 0.5s ease';
+                alert.style.opacity = '0';
+                alert.style.transform = 'translateY(-10px) scale(0.95)';
+                setTimeout(() => alert.remove(), 500);
+            }, 4000);
+        }
+    });
+</script>
+{% endblock %}
