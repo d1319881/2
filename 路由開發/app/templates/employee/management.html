@@ -1,0 +1,261 @@
+{% extends "base.html" %}
+
+{% block title %}員工管理 - 自動打工排班最佳化系統{% endblock %}
+
+{% block extra_css %}
+<style>
+    .employee-grid {
+        display: grid;
+        grid-template-columns: 1fr 2fr;
+        gap: 1.5rem;
+        margin-bottom: 2rem;
+    }
+    
+    @media (max-width: 1024px) {
+        .employee-grid {
+            grid-template-columns: 1fr;
+        }
+    }
+    
+    .control-panel {
+        padding: 1.5rem;
+    }
+    
+    .control-panel h3 {
+        margin-bottom: 1.25rem;
+        font-size: 1.15rem;
+        font-weight: 600;
+        display: flex;
+        align-items: center;
+        gap: 0.5rem;
+        border-bottom: 1px solid var(--card-border);
+        padding-bottom: 0.5rem;
+    }
+    
+    /* Modal Dialog styling */
+    .modal-overlay {
+        position: fixed;
+        top: 0;
+        left: 0;
+        right: 0;
+        bottom: 0;
+        background: rgba(0, 0, 0, 0.6);
+        backdrop-filter: blur(4px);
+        z-index: 1000;
+        display: none;
+        justify-content: center;
+        align-items: center;
+    }
+    
+    .modal-content {
+        background: #0f172a;
+        border: 1px solid var(--card-border);
+        border-radius: 16px;
+        padding: 2rem;
+        max-width: 440px;
+        width: 100%;
+        box-shadow: 0 20px 25px -5px rgba(0, 0, 0, 0.5);
+    }
+    
+    .modal-header {
+        font-size: 1.25rem;
+        font-weight: 700;
+        margin-bottom: 1.5rem;
+        color: var(--text-primary);
+        border-bottom: 1px solid var(--card-border);
+        padding-bottom: 0.5rem;
+    }
+    
+    .modal-footer {
+        display: flex;
+        gap: 0.75rem;
+        margin-top: 1.5rem;
+    }
+</style>
+{% endblock %}
+
+{% block content %}
+<div class="dashboard-title">
+    <h2>👥 員工與帳戶管理</h2>
+    <p>在此處您可以維護店內的人力名冊，並設定每位兼職員工的每週與單日最大工時上限。</p>
+</div>
+
+<div class="employee-grid">
+    <!-- Left Column: Add Employee Form -->
+    <div class="glass-panel control-panel">
+        <h3>➕ 新增員工帳戶</h3>
+        <form action="{{ url_for('main.employee_add') }}" method="POST">
+            <div class="form-group">
+                <label class="form-label" for="username">帳號名稱 (登入帳號)</label>
+                <input type="text" class="form-control" id="username" name="username" placeholder="例如: user_jerry" required autocomplete="off">
+            </div>
+            
+            <div class="form-group">
+                <label class="form-label" for="password">密碼</label>
+                <input type="password" class="form-control" id="password" name="password" placeholder="請設定 6 位數以上密碼" required autocomplete="new-password">
+            </div>
+            
+            <div class="form-group">
+                <label class="form-label" for="name">姓名</label>
+                <input type="text" class="form-control" id="name" name="name" placeholder="例如: 林小明" required autocomplete="off">
+            </div>
+            
+            <div class="form-group">
+                <label class="form-label" for="role">角色與權限</label>
+                <select class="form-control" id="role" name="role">
+                    <option value="staff" selected>一般員工 (Staff)</option>
+                    <option value="manager">店長 (Manager)</option>
+                </select>
+            </div>
+            
+            <div class="form-group">
+                <label class="form-label" for="max_daily_hours">單日最大工時限制 (小時)</label>
+                <input type="number" step="0.5" class="form-control" id="max_daily_hours" name="max_daily_hours" value="8.0" required>
+            </div>
+            
+            <div class="form-group">
+                <label class="form-label" for="max_weekly_hours">每週最大工時限制 (小時)</label>
+                <input type="number" step="0.5" class="form-control" id="max_weekly_hours" name="max_weekly_hours" value="40.0" required>
+            </div>
+            
+            <button type="submit" class="btn btn-primary" style="margin-top: 0.5rem;">確認建立員工</button>
+        </form>
+    </div>
+    
+    <!-- Right Column: Employee List Table -->
+    <div class="glass-panel section-panel">
+        <div class="section-header">
+            <h3>👥 現有員工名冊</h3>
+        </div>
+        <div class="table-responsive">
+            <table class="table">
+                <thead>
+                    <tr>
+                        <th>帳號</th>
+                        <th>姓名</th>
+                        <th>權限</th>
+                        <th>單日限制</th>
+                        <th>每週限制</th>
+                        <th>操作</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    {% if employees %}
+                        {% for emp in employees %}
+                            <tr>
+                                <td style="font-family: monospace;">{{ emp.username }}</td>
+                                <td style="font-weight: 600;">{{ emp.name }}</td>
+                                <td>
+                                    {% if emp.role == 'manager' %}
+                                        <span class="badge badge-info">店長</span>
+                                    {% else %}
+                                        <span class="badge badge-success">一般員工</span>
+                                    {% endif %}
+                                </td>
+                                <td>{{ emp.max_daily_hours }} hrs</td>
+                                <td>{{ emp.max_weekly_hours }} hrs</td>
+                                <td>
+                                    <button type="button" class="btn btn-outline" 
+                                            style="width: auto; padding: 0.35rem 0.75rem; font-size: 0.8rem; font-weight: 500; display: inline-flex;"
+                                            onclick="openEditModal('{{ emp.id }}', '{{ emp.name|escape }}', '{{ emp.role }}', '{{ emp.max_daily_hours }}', '{{ emp.max_weekly_hours }}')">
+                                        編輯
+                                    </button>
+                                    
+                                    {% if emp.id != session.get('user_id') %}
+                                        <form action="{{ url_for('main.employee_delete', user_id=emp.id) }}" method="POST" style="display: inline;" onsubmit="return confirm('確定要停用員工 {{ emp.name }} 嗎？此動作將防止該帳戶登入與排班。')">
+                                            <button type="submit" class="btn btn-danger" style="width: auto; padding: 0.35rem 0.75rem; font-size: 0.8rem; font-weight: 500; display: inline-flex;">
+                                                停用
+                                            </button>
+                                        </form>
+                                    {% else %}
+                                        <span class="badge badge-warning" style="opacity: 0.6;">本人</span>
+                                    {% endif %}
+                                </td>
+                            </tr>
+                        {% endfor %}
+                    {% else %}
+                        <tr>
+                            <td colspan="6" style="text-align: center; color: var(--text-secondary);">目前尚無員工名冊資料。</td>
+                        </tr>
+                    {% endif %}
+                </tbody>
+            </table>
+        </div>
+    </div>
+</div>
+
+<!-- Edit Employee Modal -->
+<div class="modal-overlay" id="editModal">
+    <div class="modal-content">
+        <div class="modal-header">編輯員工工時限制</div>
+        
+        <form id="editForm" method="POST">
+            <div class="form-group">
+                <label class="form-label" for="editName">員工姓名</label>
+                <input type="text" class="form-control" id="editName" name="name" required autocomplete="off">
+            </div>
+            
+            <div class="form-group">
+                <label class="form-label" for="editRole">角色與權限</label>
+                <select class="form-control" id="editRole" name="role">
+                    <option value="staff">一般員工 (Staff)</option>
+                    <option value="manager">店長 (Manager)</option>
+                </select>
+            </div>
+            
+            <div class="form-group">
+                <label class="form-label" for="editMaxDaily">單日最大工時限制 (小時)</label>
+                <input type="number" step="0.5" class="form-control" id="editMaxDaily" name="max_daily_hours" required>
+            </div>
+            
+            <div class="form-group">
+                <label class="form-label" for="editMaxWeekly">每週最大工時限制 (小時)</label>
+                <input type="number" step="0.5" class="form-control" id="editMaxWeekly" name="max_weekly_hours" required>
+            </div>
+            
+            <div class="modal-footer">
+                <button type="submit" class="btn btn-primary" style="flex: 2;">更新資料</button>
+                <button type="button" class="btn btn-outline" id="closeModalBtn" style="flex: 1;">取消</button>
+            </div>
+        </form>
+    </div>
+</div>
+{% endblock %}
+
+{% block extra_js %}
+<script>
+    document.addEventListener('DOMContentLoaded', () => {
+        const editModal = document.getElementById('editModal');
+        const closeModalBtn = document.getElementById('closeModalBtn');
+        const editForm = document.getElementById('editForm');
+        
+        const editName = document.getElementById('editName');
+        const editRole = document.getElementById('editRole');
+        const editMaxDaily = document.getElementById('editMaxDaily');
+        const editMaxWeekly = document.getElementById('editMaxWeekly');
+        
+        // Open edit modal & populate values
+        window.openEditModal = function(id, name, role, maxDaily, maxWeekly) {
+            editForm.action = `/employees/${id}/update`;
+            editName.value = name;
+            editRole.value = role;
+            editMaxDaily.value = maxDaily;
+            editMaxWeekly.value = maxWeekly;
+            
+            editModal.style.display = 'flex';
+        };
+        
+        // Close modal
+        closeModalBtn.addEventListener('click', () => {
+            editModal.style.display = 'none';
+        });
+        
+        // Close when clicking overlay
+        editModal.addEventListener('click', (e) => {
+            if (e.target === editModal) {
+                editModal.style.display = 'none';
+            }
+        });
+    });
+</script>
+{% endblock %}

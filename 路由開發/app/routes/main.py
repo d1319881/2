@@ -1,9 +1,10 @@
 # 儲存路徑: 路由開發/app/routes/main.py
 from datetime import datetime, time, timedelta
-from flask import render_template, redirect, url_for, session, request
+from flask import render_template, redirect, url_for, session, request, flash
 from app.routes import main_bp
 from app.models.leave import Leave
 from app.models.shift import Shift
+from app.models.user import User
 from app.routes.auth import login_required, manager_required
 
 @main_bp.route('/', methods=['GET'])
@@ -105,3 +106,109 @@ def staff_dashboard():
         weekly_shifts=weekly_shifts,
         leave_history=leave_history
     )
+
+@main_bp.route('/employees', methods=['GET'])
+@manager_required
+def employee_management():
+    """
+    顯示店長員工管理頁面
+    :return: 渲染 templates/employee/management.html
+    """
+    employees = User.get_all()
+    return render_template('employee/management.html', employees=employees)
+
+@main_bp.route('/employees/add', methods=['POST'])
+@manager_required
+def employee_add():
+    """
+    新增員工
+    """
+    username = request.form.get('username', '').strip()
+    password = request.form.get('password', '').strip()
+    name = request.form.get('name', '').strip()
+    role = request.form.get('role', 'staff').strip()
+    max_weekly_hours = request.form.get('max_weekly_hours', '40.0')
+    max_daily_hours = request.form.get('max_daily_hours', '8.0')
+
+    if not username or not password or not name:
+        flash('請填寫所有必要欄位 (帳號、密碼、姓名)。', 'danger')
+        return redirect(url_for('main.employee_management'))
+
+    try:
+        max_weekly_hours = float(max_weekly_hours)
+        max_daily_hours = float(max_daily_hours)
+    except ValueError:
+        flash('最大工時數值格式不正確。', 'danger')
+        return redirect(url_for('main.employee_management'))
+
+    user = User.create(
+        username=username,
+        password=password,
+        name=name,
+        role=role,
+        max_weekly_hours=max_weekly_hours,
+        max_daily_hours=max_daily_hours
+    )
+
+    if not user:
+        flash('此帳號名稱已被註冊。', 'danger')
+    else:
+        flash(f'成功新增員工：{name}！', 'success')
+
+    return redirect(url_for('main.employee_management'))
+
+@main_bp.route('/employees/<int:user_id>/update', methods=['POST'])
+@manager_required
+def employee_update(user_id):
+    """
+    更新員工資料
+    """
+    user = User.get_by_id(user_id)
+    if not user:
+        flash('找不到該筆員工資料。', 'danger')
+        return redirect(url_for('main.employee_management'))
+
+    name = request.form.get('name', '').strip()
+    role = request.form.get('role', 'staff').strip()
+    max_weekly_hours = request.form.get('max_weekly_hours', '40.0')
+    max_daily_hours = request.form.get('max_daily_hours', '8.0')
+
+    if not name:
+        flash('姓名不能為空。', 'danger')
+        return redirect(url_for('main.employee_management'))
+
+    try:
+        max_weekly_hours = float(max_weekly_hours)
+        max_daily_hours = float(max_daily_hours)
+    except ValueError:
+        flash('最大工時數值格式不正確。', 'danger')
+        return redirect(url_for('main.employee_management'))
+
+    user.update(
+        name=name,
+        role=role,
+        max_weekly_hours=max_weekly_hours,
+        max_daily_hours=max_daily_hours
+    )
+    flash(f'員工 {name} 的資料已更新！', 'success')
+    return redirect(url_for('main.employee_management'))
+
+@main_bp.route('/employees/<int:user_id>/delete', methods=['POST'])
+@manager_required
+def employee_delete(user_id):
+    """
+    軟刪除/停用員工
+    """
+    user = User.get_by_id(user_id)
+    if not user:
+        flash('找不到該筆員工資料。', 'danger')
+        return redirect(url_for('main.employee_management'))
+
+    # 防止自己刪除自己
+    if user.id == session.get('user_id'):
+        flash('您不能停用自己！', 'danger')
+        return redirect(url_for('main.employee_management'))
+
+    user.delete()
+    flash(f'員工 {user.name} 已成功停用！', 'success')
+    return redirect(url_for('main.employee_management'))
